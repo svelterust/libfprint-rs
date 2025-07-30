@@ -2,3 +2,5 @@
 /Cargo.lock
 prints
 libfprint-docs
+.direnv
+.envrc
