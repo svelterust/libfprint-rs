@@ -26,14 +26,13 @@
 
       # System dependencies
       buildInputs = with pkgs; [
-        pkg-config
         rust
         libfprint
       ];
     in
     {
       devShells.${system} = {
-        default = pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
+        default = pkgs.mkShell {
           inherit buildInputs;
           shellHook = with pkgs; ''
             export LD_LIBRARY_PATH="${lib.makeLibraryPath buildInputs}"
