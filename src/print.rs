@@ -1,29 +1,83 @@
 // All methods are declared
 use glib::{
     translate::FromGlibPtrFull,
-    translate::{FromGlibContainer, FromGlibPtrNone, ToGlibPtr},
-    wrapper, ObjectExt,
+    translate::{FromGlibContainer, FromGlibPtrNone, ToGlibPtr, ToGlibPtrMut},
 };
+use std::ptr::NonNull;
 
 use crate::{device::FpDevice, finger::FpFinger, image::FpImage};
 
-wrapper! {
-    /// Struct representing a fingerprint.
-    pub struct FpPrint(Object<libfprint_sys::FpPrint, libfprint_sys::FpPrintClass>)
-        @extends glib::object::InitiallyUnowned;
+/// Struct representing a fingerprint.
+pub struct FpPrint {
+    inner: NonNull<libfprint_sys::FpPrint>,
+    created_with_new: bool,
+}
 
-    match fn {
-        type_ => || libfprint_sys::fp_print_get_type() as usize,
+impl FpPrint {
+    pub(crate) fn from_ptr_with_flag(
+        ptr: *mut libfprint_sys::FpPrint,
+        created_with_new: bool,
+    ) -> Option<Self> {
+        NonNull::new(ptr).map(|inner| FpPrint {
+            inner,
+            created_with_new,
+        })
+    }
+
+    pub(crate) fn as_ptr(&self) -> *mut libfprint_sys::FpPrint {
+        self.inner.as_ptr()
+    }
+
+    pub(crate) fn was_created_with_new(&self) -> bool {
+        self.created_with_new
+    }
+}
+
+impl<'a> ToGlibPtr<'a, *mut libfprint_sys::FpPrint> for FpPrint {
+    type Storage = &'a Self;
+
+    fn to_glib_none(&'a self) -> glib::translate::Stash<'a, *mut libfprint_sys::FpPrint, Self> {
+        glib::translate::Stash(self.as_ptr(), self)
+    }
+}
+
+impl<'a> ToGlibPtrMut<'a, *mut libfprint_sys::FpPrint> for FpPrint {
+    type Storage = &'a mut Self;
+
+    fn to_glib_none_mut(
+        &'a mut self,
+    ) -> glib::translate::StashMut<'a, *mut libfprint_sys::FpPrint, Self> {
+        glib::translate::StashMut(self.as_ptr(), self)
+    }
+}
+
+impl FromGlibPtrFull<*mut libfprint_sys::FpPrint> for FpPrint {
+    unsafe fn from_glib_full(ptr: *mut libfprint_sys::FpPrint) -> Self {
+        assert!(!ptr.is_null());
+        FpPrint {
+            inner: NonNull::new_unchecked(ptr),
+            created_with_new: false,
+        }
+    }
+}
+
+impl FromGlibPtrNone<*mut libfprint_sys::FpPrint> for FpPrint {
+    unsafe fn from_glib_none(ptr: *mut libfprint_sys::FpPrint) -> Self {
+        assert!(!ptr.is_null());
+        FpPrint {
+            inner: NonNull::new_unchecked(ptr),
+            created_with_new: false,
+        }
     }
 }
 
 impl FpPrint {
     /// Create a new `FpPrint`. This is only useful to prepare an enrollment of a new print using `FpDevice::enroll_sync`.
     /// For this you should first create a new print, fill in the relevant metadata, and then start the enrollment
-    pub fn new(dev: &FpDevice) -> Self {
+    pub fn new(dev: &FpDevice) -> Option<Self> {
         unsafe {
-            let ptr = libfprint_sys::fp_print_new(dev.to_glib_none().0);
-            Self::from_glib_full(ptr)
+            let ptr = libfprint_sys::fp_print_new(dev.as_ptr());
+            Self::from_ptr_with_flag(ptr, true)
         }
     }
 
@@ -180,7 +234,6 @@ impl FpPrint {
             Err(unsafe { glib::Error::from_glib_full(ptr.cast()) })
         } else {
             let print = unsafe { FpPrint::from_glib_full(ptr) };
-            unsafe { print.set_data("set", true) };
             Ok(print)
         }
     }

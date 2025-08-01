@@ -3,7 +3,6 @@ use crate::image::FpImage;
 use gio::Cancellable;
 use glib::translate::FromGlibPtrNone;
 use glib::translate::{FromGlibPtrFull, ToGlibPtr};
-use glib::ObjectExt;
 use std::sync::Arc;
 
 use crate::print::FpPrint;
@@ -145,9 +144,6 @@ impl FpDevice {
 
         if !ptr.is_null() {
             let fp = unsafe { FpPrint::from_glib_full(ptr) };
-            unsafe {
-                fp.set_data("set", true);
-            }
             return Ok(fp);
         } else {
             return Err(unsafe { glib::Error::from_glib_full(error.cast()) });
@@ -192,7 +188,7 @@ impl FpDevice {
         let mut error = std::ptr::null_mut();
         let mut matched = glib::ffi::GFALSE;
 
-        let mut new_print: libfprint_sys::FpPrint_autoptr = std::ptr::null_mut();
+        let mut new_print: *mut libfprint_sys::FpPrint = std::ptr::null_mut();
         let new_print_ptr = match print {
             Some(_) => std::ptr::addr_of_mut!(new_print),
             None => std::ptr::null_mut(),
@@ -317,19 +313,23 @@ impl FpDevice {
         // Arc the function content and the data, get the pointer. If no function is provided
         // then a null pointer is returned.
 
-        use glib::translate::ToGlibContainerFromSlice;
         let ptr = fn_pointer!(match_cb, match_data);
 
         // Create a GPtrArray from the vector of prints
-        let raw_prints: (*mut glib::ffi::GPtrArray, _) =
-            ToGlibContainerFromSlice::to_glib_container_from_slice(&prints);
+        let ptr_array = unsafe { glib::ffi::g_ptr_array_new() };
+        for print in prints {
+            unsafe {
+                glib::ffi::g_ptr_array_add(ptr_array, print.to_glib_none().0 as *mut std::ffi::c_void);
+            }
+        }
+        let raw_prints = ptr_array;
 
         let raw_cancel = match cancellable {
             Some(p) => p.to_glib_none().0,
             None => std::ptr::null_mut(),
         };
 
-        let mut new_print: libfprint_sys::FpPrint_autoptr = std::ptr::null_mut();
+        let mut new_print: *mut libfprint_sys::FpPrint = std::ptr::null_mut();
         let new_print_ptr = match print {
             Some(_) => std::ptr::addr_of_mut!(new_print),
             None => std::ptr::null_mut(),
@@ -342,7 +342,7 @@ impl FpDevice {
         let res = unsafe {
             libfprint_sys::fp_device_identify_sync(
                 self.to_glib_none().0,
-                raw_prints.0.cast(),
+                raw_prints as *mut libfprint_sys::_GPtrArray,
                 raw_cancel.cast(),
                 Some(fp_match_cb::<FpMatchCb<T>, T>),
                 ptr,
@@ -351,7 +351,7 @@ impl FpDevice {
                 std::ptr::addr_of_mut!(error),
             )
         };
-        unsafe { libfprint_sys::g_ptr_array_free(raw_prints.0.cast(), 1) };
+        unsafe { glib::ffi::g_ptr_array_free(raw_prints, 1) };
 
         match print {
             Some(p) => {
@@ -423,9 +423,8 @@ impl FpDevice {
 
     fn check_print(&self, template: FpPrint) -> FpPrint {
         // This checks if the template was created with FpPrint::new() or not
-        let set: Option<bool> = unsafe { template.steal_data("set") };
-        if set == Some(true) {
-            let empty_template = FpPrint::new(&self);
+        if template.was_created_with_new() {
+            let empty_template = FpPrint::new(&self).expect("Failed to create new print");
             if let Some(username) = template.username() {
                 empty_template.set_username(&username);
             }

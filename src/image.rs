@@ -1,10 +1,9 @@
 // All methods are declared
-use glib::{
-    translate::{FromGlibContainer, FromGlibPtrFull, ToGlibPtr},
-    wrapper,
+use glib::translate::{
+    FromGlibContainer, FromGlibPtrFull, FromGlibPtrNone, ToGlibPtr, ToGlibPtrMut,
 };
+use std::ptr::NonNull;
 
-wrapper! {
 #[cfg(not(doctest))]
 /// Struct representing an image of a fingerprint. Not all devices support this feature.
 /// # Examples:
@@ -13,7 +12,7 @@ wrapper! {
 /// use std::fs::File;
 /// use std::io::Write;
 ///
-/// let context = FpContext::new();
+/// let context = FpContext::new().unwrap();
 /// let devices = context.devices();
 /// let device = devices.get(0).unwrap();
 ///
@@ -26,10 +25,49 @@ wrapper! {
 /// file.write_all(header.as_bytes()).unwrap();
 /// file.write_all(data.as_slice()).unwrap();
 /// ```
-    pub struct FpImage(Object<libfprint_sys::FpImage, libfprint_sys::FpImageClass>);
+pub struct FpImage {
+    inner: NonNull<libfprint_sys::FpImage>,
+}
 
-    match fn {
-        type_ => || libfprint_sys::fp_image_get_type() as usize,
+impl FpImage {
+    pub(crate) fn as_ptr(&self) -> *mut libfprint_sys::FpImage {
+        self.inner.as_ptr()
+    }
+}
+
+impl<'a> ToGlibPtr<'a, *mut libfprint_sys::FpImage> for FpImage {
+    type Storage = &'a Self;
+
+    fn to_glib_none(&'a self) -> glib::translate::Stash<'a, *mut libfprint_sys::FpImage, Self> {
+        glib::translate::Stash(self.as_ptr(), self)
+    }
+}
+
+impl<'a> ToGlibPtrMut<'a, *mut libfprint_sys::FpImage> for FpImage {
+    type Storage = &'a mut Self;
+
+    fn to_glib_none_mut(
+        &'a mut self,
+    ) -> glib::translate::StashMut<'a, *mut libfprint_sys::FpImage, Self> {
+        glib::translate::StashMut(self.as_ptr(), self)
+    }
+}
+
+impl FromGlibPtrFull<*mut libfprint_sys::FpImage> for FpImage {
+    unsafe fn from_glib_full(ptr: *mut libfprint_sys::FpImage) -> Self {
+        assert!(!ptr.is_null());
+        FpImage {
+            inner: NonNull::new_unchecked(ptr),
+        }
+    }
+}
+
+impl FromGlibPtrNone<*mut libfprint_sys::FpImage> for FpImage {
+    unsafe fn from_glib_none(ptr: *mut libfprint_sys::FpImage) -> Self {
+        assert!(!ptr.is_null());
+        FpImage {
+            inner: NonNull::new_unchecked(ptr),
+        }
     }
 }
 

@@ -28,6 +28,9 @@
       buildInputs = with pkgs; [
         rust
         libfprint
+        glib
+        glib.dev
+        pkg-config
       ];
     in
     {
