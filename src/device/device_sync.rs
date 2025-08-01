@@ -144,9 +144,9 @@ impl FpDevice {
 
         if !ptr.is_null() {
             let fp = unsafe { FpPrint::from_glib_full(ptr) };
-            return Ok(fp);
+            Ok(fp)
         } else {
-            return Err(unsafe { glib::Error::from_glib_full(error.cast()) });
+            Err(unsafe { glib::Error::from_glib_full(error.cast()) })
         }
     }
 
@@ -212,13 +212,10 @@ impl FpDevice {
             )
         };
 
-        match print {
-            Some(p) => {
-                if !new_print.is_null() {
-                    *p = unsafe { FpPrint::from_glib_full(new_print) };
-                }
+        if let Some(p) = print {
+            if !new_print.is_null() {
+                *p = unsafe { FpPrint::from_glib_full(new_print) };
             }
-            None => {}
         };
 
         // If res is false, the operation failed, so the `error` pointer must be pointing
@@ -227,7 +224,7 @@ impl FpDevice {
             return Err(unsafe { glib::Error::from_glib_none(error.cast()) });
         }
         // Else there must be a response
-        return Ok(matched == glib::ffi::GTRUE);
+        Ok(matched == glib::ffi::GTRUE)
     }
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     /// Prepare device for suspend.
@@ -319,7 +316,10 @@ impl FpDevice {
         let ptr_array = unsafe { glib::ffi::g_ptr_array_new() };
         for print in prints {
             unsafe {
-                glib::ffi::g_ptr_array_add(ptr_array, print.to_glib_none().0 as *mut std::ffi::c_void);
+                glib::ffi::g_ptr_array_add(
+                    ptr_array,
+                    print.to_glib_none().0 as *mut std::ffi::c_void,
+                );
             }
         }
         let raw_prints = ptr_array;
@@ -353,22 +353,19 @@ impl FpDevice {
         };
         unsafe { glib::ffi::g_ptr_array_free(raw_prints, 1) };
 
-        match print {
-            Some(p) => {
-                if !new_print.is_null() {
-                    *p = unsafe { FpPrint::from_glib_full(new_print) };
-                }
+        if let Some(p) = print {
+            if !new_print.is_null() {
+                *p = unsafe { FpPrint::from_glib_full(new_print) };
             }
-            None => {}
         };
 
         if res == glib::ffi::GFALSE {
             return Err(unsafe { glib::Error::from_glib_full(error.cast()) });
         }
         if print_match.is_null() {
-            return Ok(None);
+            Ok(None)
         } else {
-            return Ok(Some(unsafe { FpPrint::from_glib_full(print_match) }));
+            Ok(Some(unsafe { FpPrint::from_glib_full(print_match) }))
         }
     }
     #[cfg(not(doctest))]
@@ -424,7 +421,7 @@ impl FpDevice {
     fn check_print(&self, template: FpPrint) -> FpPrint {
         // This checks if the template was created with FpPrint::new() or not
         if template.was_created_with_new() {
-            let empty_template = FpPrint::new(&self).expect("Failed to create new print");
+            let empty_template = FpPrint::new(self).expect("Failed to create new print");
             if let Some(username) = template.username() {
                 empty_template.set_username(&username);
             }
@@ -436,9 +433,9 @@ impl FpDevice {
                 empty_template.set_enroll_date(date);
             }
             drop(template);
-            return empty_template;
+            empty_template
         } else {
-            return template;
-        };
+            template
+        }
     }
 }

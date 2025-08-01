@@ -225,7 +225,7 @@ impl FpPrint {
 
             libfprint_sys::fp_print_deserialize(
                 ptr.0,
-                (len as usize).try_into().unwrap(),
+                len.try_into().unwrap(),
                 &mut error,
             )
         };

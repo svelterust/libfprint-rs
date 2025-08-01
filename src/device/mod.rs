@@ -74,7 +74,7 @@ pub(crate) struct UserData<F, T> {
 
 impl<F, T> Drop for UserData<F, T> {
     fn drop(&mut self) {
-        if !self.data.is_none() {
+        if self.data.is_some() {
             drop(self.data.take())
         }
     }
